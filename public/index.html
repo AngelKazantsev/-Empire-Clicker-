@@ -1,0 +1,425 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Empire Clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="config.js"></script><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#070714"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head><body><div id="app"><main id="m"></main><nav class="tabs" id="tabs"></nav><div id="sheet"><div id="sp"><div class="top"><b id="st"></b><button data-a="close">✕</button></div><div id="sb"></div></div></div>
+<div id="toast"></div></div>
+<script>
+const $=s=>document.querySelector(s);
+const nf=n=>Math.floor(n).toLocaleString('ru-RU');
+const copyTxt=t=>{try{navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}};
+const money=n=>(Math.abs(n)<100&&n%1?n.toLocaleString('ru-RU',{maximumFractionDigits:1}):Math.floor(n).toLocaleString('ru-RU'));
+const CN='<i class="cn">♛</i>';
+const UP=[
+{id:'click',n:'Усиление клика',d:'+1 монета за клик',i:'<span class="gi">👆</span>',k:'k1',b:50,g:1.5,s:1},
+{id:'auto',n:'Авто-кликер',d:'Зарабатывает автоматически',i:'<svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2 4 7-3 1.5-4-7-5 4z" fill="#b39bff"/></svg>',k:'k2',b:250,g:1.6},
+{id:'boost',n:'Буст монет',d:'Увеличивает доход на 50%',i:'<svg viewBox="0 0 24 24"><path d="M8 20V8M4 12l4-5 4 5M16 20V4M12 8l4-5 4 5" fill="none" stroke="#3fe08a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',k:'k3',b:500,g:1.8},
+{id:'off',n:'Оффлайн доход',d:'Заработок пока ты не в игре',i:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#fff" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',k:'k4',b:1000,g:2},
+{id:'crit',n:'Бонус за клик',d:'Шанс получить x2 – x10',i:'🪙',k:'k5',b:2500,g:1.7,m:10},
+{id:'spd',n:'Скорость дохода',d:'Увеличивает доход в секунду',i:'<svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="#a58bff"/><path d="M2 8h4M1 12h3M2 16h4" stroke="#a58bff" stroke-width="1.5" stroke-linecap="round"/></svg>',k:'k6',b:5000,g:1.8,m:20},
+{id:'critm',n:'Мощь бонуса',d:'Растёт максимум множителя',i:'💥',b:3000,g:1.9,m:6},
+{id:'btime',n:'Частый бонус',d:'Бонус ×2 на 30 сек чаще',i:'⏱️',b:600,g:1.8,m:6},
+{id:'bdur',n:'Долгий бонус',d:'+10 сек к длительности ×2',i:'⌛',b:700,g:1.8,m:10},
+{id:'gluck',n:'Частая монета',d:'Золотая монета чаще',i:'🍀',b:900,g:1.8,m:8},
+{id:'gbig',n:'Крупная монета',d:'+50% к награде монеты',i:'💰',b:1100,g:1.9,m:10}];
+const def=()=>({c:60,tot:0,clicks:0,crits:0,u:{},auto:0,bn:Date.now()+277000,dl:0,dlLast:0,streak:0,ac:{},last:Date.now(),tab:0,play:0,run:0,stars:0,tk:3,prem:'',x3:0,au5:0,skin:'neon',skins:{neon:1},ch:{c1:0,c2:0,c3:0},chOpen:0,buys:0,boosts:0,bt:{},maxBal:0,maxIps:0,maxHit:0,au5off:0,vol:100,mus:0,mvol:40,notif:0,tips:{},acf:'all',snd:0,vib:1,light:0,hist:[],dq:null,ups:0,pet:0,tut:0,fxq:2,nick:'',bosses:0,golds:0,maxMul:0,qdone:0,xp:0,plv:1,sub:0,seenAnn:[],gev:null});
+/* защита от испорченных или чужих данных сохранения */
+function fixS(o){const d=def();
+ for(const k of Object.keys(d)){const t=d[k];
+  if(Array.isArray(t)){if(!Array.isArray(o[k]))o[k]=[]}
+  else if(t&&typeof t==='object'){if(!o[k]||typeof o[k]!=='object'||Array.isArray(o[k]))o[k]=JSON.parse(JSON.stringify(t))}
+  else if(typeof t==='number'){if(typeof o[k]!=='number'||!Number.isFinite(o[k]))o[k]=t}
+  else if(typeof t==='string'){if(typeof o[k]!=='string')o[k]=t}}
+ for(const m of ['u','ac','ch','bt']){const x=o[m];for(const k of Object.keys(x)){if(m==='ac'){if(!x[k])delete x[k]}else if(typeof x[k]!=='number'||!Number.isFinite(x[k])||x[k]<0)delete x[k]}}
+ for(const k of ['c','tot','tk','play','clicks','stars','pet','plv'])if(o[k]<0)o[k]=0;
+ if(!o.skins||typeof o.skins!=='object')o.skins={neon:1};o.skins.neon=1;
+ if(typeof o.dq!=='object')o.dq=null;if(o.dq&&(!Array.isArray(o.dq.q)||!o.dq.b))o.dq=null;
+ if(typeof o.tab!=='number'||o.tab<0||o.tab>4)o.tab=0;
+ return o}
+let S=def();try{Object.assign(S,JSON.parse(localStorage.getItem('empire1')||'{}'))}catch(e){}fixS(S);
+S.tab=0;if(!(S.sub>=0&&S.sub<=3))S.sub=0;
+const save=()=>{S.last=Date.now();try{localStorage.setItem('empire1',JSON.stringify(S))}catch(e){}};
+const lv=id=>S.u[id]||(id==='click'?1:0);
+const U=id=>UP.find(x=>x.id===id);
+let CFG={clickMul:1,incomeMul:1,priceMul:1,shopSale:0,maintenance:false};
+const price=id=>{const u=U(id);return Math.max(1,Math.round(u.b*Math.pow(u.g,lv(id)-(u.s||0))*CFG.priceMul))};
+const dur=()=>(30+10*lv('bdur'))*1000,gap=()=>Math.max(60,300-30*lv('btime'))*1000;
+const bnOn=()=>{const n=Date.now();return n>=S.bn&&n<S.bn+dur()};
+const EV=()=>{const d=new Date().getDay();return d===0||d===6?{n:'🎉 Выходные: доход ×1.5',m:1.5}:{n:'',m:1}};
+const gev=()=>S.gev&&(!S.gev.until||S.gev.until>Date.now())?S.gev.m:1;
+const gm=()=>gev()*EV().m*(1+.25*S.stars)*({gold:1.2,plat:1.35,black:1.5}[S.prem]||1)*(Date.now()<S.x3?3:1);
+const base=()=>lv('click')*(1+.5*lv('boost'))*gm();
+const cv=()=>base()*(bnOn()?2:1)*CFG.clickMul;
+const turboOn=()=>Date.now()<S.au5&&!S.au5off;
+const autoOn=()=>!!((S.auto&&lv('auto'))||turboOn());
+const ips=()=>{const au=(S.auto&&lv('auto')?lv('auto'):0)+(turboOn()?5:0);return (au+S.pet*.3)*base()*(bnOn()?2:1)*(1+.25*lv('spd'))*CFG.incomeMul};
+const need=()=>1000*S.plv;
+function xpAdd(n){S.xp+=n;while(S.xp>=need()){S.xp-=need();S.plv++;const r=250*S.plv;add(r);toast('🎉 Уровень '+S.plv+'! Сундук: +'+money(r));sfx.buy()}}
+const totLv=()=>UP.reduce((s,u)=>s+lv(u.id)-(u.s||0),0);
+const pad=n=>String(n).padStart(2,'0'),mmss=s=>pad(Math.floor(s/60))+':'+pad(Math.floor(s%60));
+const AC=[];[10,50,100,500,1000,5000,10000].forEach((n,i)=>AC.push({id:'k'+n,n:'Кликов: '+nf(n),r:20*Math.pow(3,i),p:()=>S.clicks,t:n}));
+[100,1000,10000,100000,1000000].forEach((n,i)=>AC.push({id:'c'+n,n:'Всего монет: '+nf(n),r:50*Math.pow(4,i),p:()=>S.tot,t:n}));
+[3,10,25].forEach((n,i)=>AC.push({id:'u'+n,n:'Уровней улучшений: '+n,r:100*Math.pow(5,i),p:totLv,t:n}));
+[5,25].forEach(n=>AC.push({id:'x'+n,n:'Крит-ударов: '+n,r:n*10,p:()=>S.crits,t:n}));
+const AR=(id,n,p,t,r,tk)=>AC.push({id,n,p,t,r,tk:tk||0});
+[25000,100000].forEach((n,i)=>AR('k'+n,'Кликов: '+nf(n),()=>S.clicks,n,2000*Math.pow(4,i),i));
+[1e7,1e8,1e9].forEach((n,i)=>AR('c'+n,'Всего монет: '+nf(n),()=>S.tot,n,5e4*Math.pow(10,i),i+1));
+[50,100].forEach((n,i)=>AR('u'+n,'Уровней улучшений: '+n,totLv,n,2e4*Math.pow(5,i),1));
+[100,500].forEach((n,i)=>AR('x'+n,'Крит-ударов: '+nf(n),()=>S.crits,n,3000*Math.pow(5,i),i));
+[1.5,2,2.5,3].forEach((v,i)=>AR('m'+i,'Комбо ×'+v,()=>S.maxMul||0,v,300*Math.pow(3,i),i>1?1:0));
+[1,5,15,40].forEach((n,i)=>AR('b'+n,'Побеждено боссов: '+n,()=>S.bosses,n,500*Math.pow(4,i),i>0?1:0));
+[1,10,50].forEach((n,i)=>AR('g'+n,'Поймано золотых монет: '+n,()=>S.golds,n,400*Math.pow(5,i),i));
+[1,3,10].forEach((n,i)=>AR('s'+n,'Перерождений (⭐): '+n,()=>S.stars,n,5000*Math.pow(6,i),i+1));
+[1,5,10].forEach((n,i)=>AR('p'+n,'Уровень питомца: '+n,()=>S.pet,n,1000*Math.pow(4,i),i));
+[3,7,14].forEach((n,i)=>AR('d'+n,'Ежедневная серия: '+n+' дн.',()=>S.streak,n,800*Math.pow(3,i),i+1));
+[2,4,6].forEach((n,i)=>AR('z'+n,'Скинов открыто: '+n,()=>Object.keys(S.skins).length,n,1500*Math.pow(4,i),i));
+[1,5,15].forEach((n,i)=>AR('q'+n,'Дней с выполненными заданиями: '+n,()=>S.qdone,n,600*Math.pow(4,i),i));
+const AR2=(id,n,p,t,r,tk,it)=>AC.push({id,n,p,t,r:Math.min(1e13,Math.round(r)),tk:tk||0,it:it||null});
+const itm=(i,len)=>i===len-1?{k:'chest',id:'c3',n:1}:(i+1)%5===0?{k:'chest',id:'c1',n:1}:(i+1)%7===0?{k:'boost',id:'x3',n:1}:null;
+const GEN=(id,name,p,arr,base,g)=>arr.forEach((t,i)=>AR2(id+t,name.replace('{t}',nf(t)),p,t,base*Math.pow(g,i),(i+1)%3===0?Math.ceil((i+1)/3):0,itm(i,arr.length)));
+GEN('k','Кликов: {t}',()=>S.clicks,[250,2500,50000,250000,500000,1e6,2.5e6,5e6,1e7],3000,3.2);
+GEN('bal','Накопить монет: {t}',()=>S.maxBal||0,[1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11],200,6);
+GEN('c','Всего монет: {t}',()=>S.tot,[1e10,1e11,1e12],5e6,12);
+GEN('lv','Уровень игрока: {t}',()=>S.plv||1,[2,3,5,8,10,15,20,25,30,40,50,75,100],300,1.7);
+GEN('u','Уровней улучшений: {t}',totLv,[150,200,300,500],1e5,4);
+UP.forEach(u=>[1,5,10,25].filter(t=>t<=(u.m||1e9)).forEach((t,i,a)=>AR2('up_'+u.id+'_'+t,u.n+': уровень '+t,()=>lv(u.id)-(u.s||0),t,200*Math.pow(3.5,i)*(1+UP.indexOf(u)*.15),i===a.length-1?1:0,null)));
+GEN('x','Крит-ударов: {t}',()=>S.crits,[1000,5000,20000],2e4,6);
+GEN('b','Побеждено боссов: {t}',()=>S.bosses,[100,250,500],1e5,4);
+['Пришелец','Дракон','Робот-прыгун','Призрак','Тролль','Кракен'].forEach((nm,ix)=>[1,10].forEach((t,i)=>AR2('bt_'+ix+'_'+t,t===1?'Победить босса: '+nm:'Победить босса «'+nm+'» ×'+t,()=>(S.bt||{})[nm]||0,t,(800+ix*200)*Math.pow(8,i),i,i?{k:'chest',id:'c2',n:1}:null)));
+GEN('g','Поймано золотых монет: {t}',()=>S.golds,[100,250,500,1000],1e4,4);
+GEN('s','Перерождений (⭐): {t}',()=>S.stars,[25,50,100],5e5,8);
+GEN('p','Уровень питомца: {t}',()=>S.pet,[15,20,30,50],2e4,5);
+GEN('d','Ежедневная серия: {t} дн.',()=>S.streak,[21,30,60,100],5e3,4);
+AR2('z8','Скинов открыто: 8',()=>Object.keys(S.skins).length,8,5e4,2,{k:'chest',id:'c3',n:1});
+GEN('q','Дней с выполненными заданиями: {t}',()=>S.qdone,[30,60,100,200],1e4,4);
+GEN('ch','Открыто сундуков: {t}',()=>S.chOpen||0,[1,5,10,25,50,100,250],1500,3.5);
+GEN('sh','Покупок в магазине: {t}',()=>S.buys||0,[1,5,10,25,50,100],1000,3.5);
+[10,30,60,180,600,1440,3000].forEach((t,i,a)=>AR2('tm'+t,'Время в игре: '+(t<60?t+' мин':(t/60)+' ч'),()=>Math.floor(S.play/60),t,1500*Math.pow(3.2,i),(i+1)%3===0?(i+1)/3:0,itm(i,a.length)));
+GEN('bo','Ускорителей активировано: {t}',()=>S.boosts||0,[1,5,10,25,50],1500,4);
+GEN('mt','Получено достижений: {t}',()=>AC.filter(a=>S.ac[a.id]).length,[10,25,50,100,150],2000,7);
+GEN('ip','Доход в секунду: {t}',()=>S.maxIps||0,[1,10,100,1e3,1e4],500,9);
+GEN('ht','Максимальный клик: {t}',()=>S.maxHit||0,[10,100,1000],1500,8);
+/* bindings */
+let dispBal=0,lastTot=S.tot,dlN=0;
+const B=k=>{if(k.startsWith('bx:')){const t=S[k.slice(3)]-Date.now();return t>0?mmss(t/1000):'—'}
+ if(k==='bal')return money(dispBal);if(k==='ev')return gev()>1?'⚡ '+S.gev.n+' ×'+S.gev.m:(EV().n||'Зарабатывай по клику');if(k==='tot')return nf(S.tot);if(k==='cv')return '+'+money(cv());if(k==='cvh')return money(cv());if(k==='ips')return money(ips());if(k==='plv')return S.plv;if(k==='xpt')return nf(S.xp)+' / '+nf(need())+' опыта';
+ if(k==='bn')return bnOn()?'Активен '+mmss((S.bn+dur()-Date.now())/1000):'Через '+mmss(Math.max(0,(S.bn-Date.now())/1000));
+ if(k==='dl'){const r=S.dl-Date.now();return r>0?Math.floor(r/36e5)+'ч '+pad(Math.floor(r/6e4)%60)+'м':'Забрать'}
+ if(k.startsWith('pr:'))return money(price(k.slice(3)));if(k.startsWith('lv:'))return 'Уровень '+(lv(k.slice(3))-(U(k.slice(3)).s||0));
+ if(k==='tk')return S.tk;if(k==='st')return 'Серия: '+S.streak+' дн. · день '+(S.streak?((S.streak-1)%30)+1:1)+'/30';if(k==='pgt')return 'Получите ⭐ '+pg()+' · монет за забег: '+nf(S.run);
+ return ''};
+const bd=k=>`<span data-b="${k}">${B(k)}</span>`;
+function sb(e,f,done){const w=f*100+'%',i=e.firstChild;if(i.style.width!==w)i.style.width=w;const bt=e.closest('.ur').querySelector('button'),no=f<1||done,tx=done?'Получено':'Забрать';if(bt.classList.contains('no')!==no)bt.classList.toggle('no',no);if(bt.textContent!==tx)bt.textContent=tx}
+let lu=0,BN,PN,AN;
+function upd(f){const nw=performance.now();if(!f&&nw-lu<90)return;lu=nw;if(S.tab===3&&claimN()!==ccount){render();return}dispBal+=(S.c-dispBal)*.3;if(Math.abs(S.c-dispBal)<1)dispBal=S.c;(BN||(BN=[...document.querySelectorAll('[data-b]')])).forEach(e=>{const v=B(e.dataset.b);if(e.textContent!==v)e.textContent=v});
+ (PN||(PN=[...document.querySelectorAll('[data-p]')])).forEach(e=>{const u=U(e.dataset.p),mx=u.m&&lv(u.id)>=u.m;e.classList.toggle('no',mx||S.c<price(u.id))});
+ const b=$('#bnc');if(b)b.classList.toggle('on',bnOn());
+ const cb=$('#cmb');if(cb){const on=Date.now()-lastTap<800&&combo>=3;cb.textContent=on?'КОМБО ×'+cmul(combo).toFixed(1):'';cb.classList.toggle('on',on)}
+ const w=$('#arc');if(w){const n=Date.now(),f=bnOn()?1-(n-S.bn)/dur():Math.min(1,1-(S.bn-n)/gap());w.style.strokeDashoffset=(1-Math.max(0,Math.min(1,f)))*503+''}
+ (AN||(AN=[...document.querySelectorAll('[data-ac]')])).forEach(e=>{const a=AC.find(x=>x.id===e.dataset.ac),f=Math.min(1,a.p()/a.t);sb(e,f,!!S.ac[a.id])});
+ if(S.tab===3)document.querySelectorAll('[data-q]').forEach(e=>{const q=S.dq.q[+e.dataset.q],f=Math.min(1,(QK[q.k][1]()-S.dq.b[q.k])/q.g);sb(e,f,!!q.c)});
+ const xb=$('#xpb');if(xb){const w=Math.max(4,Math.min(100,S.xp/need()*100))+'%';if(xb.style.width!==w)xb.style.width=w}
+ const be=$('.bal b');if(be){const l=be.textContent.length,fz=l>11?'12px':l>9?'15px':l>7?'18px':'21px';if(be.style.fontSize!==fz)be.style.fontSize=fz}
+ const d=$('#dlb');if(d)d.classList.toggle('no',Date.now()<S.dl)}
+function toast(t,bad){if(bad)sfx.bad();const e=$('#toast');e.textContent=t;e.className='on'+(bad?' bad':'');clearTimeout(toast.t);toast.t=setTimeout(()=>e.className='',2200)}
+/* views */
+const CROWN='<svg viewBox="0 0 64 64"><path d="M8 24l13 10 11-20 11 20 13-10-5 25H13z"/><rect x="13" y="51" width="38" height="6" rx="3"/></svg>';
+const BOLT='<svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>';
+const TASK='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const GIFT='<svg viewBox="0 0 24 24"><path d="M3 9h18v4H3zM5 13h14v8H5zM12 9v12" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9C9 9 7.5 7.500 8 6c1-2 4 0 4 3zM12 9c3 0 4.500-1.500 4-3-1-2-4 0-4 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const CART='<svg viewBox="0 0 24 24"><path d="M3 4h2l2.500 12h11L20 8H7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.600"/><circle cx="17" cy="20" r="1.600"/></svg>';
+const CUR='<svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2 4 7-3 1.5-4-7-5 4z"/></svg>';
+const BARS='<svg viewBox="0 0 16 16" class="bars"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6" y="5" width="3" height="10" rx="1"/><rect x="11" y="1" width="3" height="14" rx="1"/></svg>';
+const CHEST='<svg class="chest" viewBox="0 0 64 56"><path d="M6 24a26 15 0 0152 0v6H6z" fill="#34346a"/><rect x="6" y="28" width="52" height="24" rx="3" fill="#202046"/><rect x="26" y="25" width="12" height="15" rx="2" fill="#8f7bff"/><path d="M6 24h52M6 38h52" stroke="#7b5cff" stroke-width="2"/></svg>';
+const IC=['<svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>','<svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>','<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 016 0v2"/></svg>','<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v9h14v-9M12 8C9 8 7 6.5 7.5 5 8.5 3 12 5 12 8zM12 8c3 0 5-1.5 4.5-3-1-2-4.5 0-4.500 3z"/></svg>','<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>'];
+const TN=['Кликер','Улучшения','Магазин','Награды','Профиль'];
+function tabs(){$('#tabs').innerHTML=TN.map((n,i)=>`<button class="${S.tab===i?'on':''}" data-a="tab" data-x="${i}">${IC[i]}${n}</button>`).join('')}
+const ibtn=(a,x,ic,dot)=>`<button class="ib" data-a="${a}" data-x="${x}">${ic}${dot?'<i class="dot"></i>':''}</button>`;
+const OIC={click:'⚡',auto:'🖱️',boost:'⬆️',off:'⏰',crit:'🪙',spd:'⚡',critm:'💥',btime:'⏱️',bdur:'⌛',gluck:'🍀',gbig:'💰'};
+const hd=()=>`<div class="hd"><div class="tile">👑</div><div class="t"><h1>Empire Clicker</h1><small>${bd('ev')}</small></div><button class="card balc" data-a="tab" data-x="4"><i>▣</i><div><small>Баланс</small><b>${bd('bal')} ♛</b></div><span style="color:var(--mut);margin-left:6px">›</span></button></div>`;
+const orow=u=>{const L=lv(u.id)-(u.s||0),mx=u.m&&L>=u.m;return `<div class="card ur"><div class="ic">${OIC[u.id]||'⚡'}</div><div class="tx"><b>${u.n}</b><small>${u.d}</small></div><div class="st">${bd('lv:'+u.id)}${u.m?' / '+u.m:''}<br>${mx?'Макс.':'Цена: '+bd('pr:'+u.id)+' '+CN}</div><button class="up" data-p="${u.id}" data-a="up" data-x="${u.id}">${mx?'Макс.':'Улучшить'}</button></div>`};
+const TIPS={1:'Покупайте улучшения: каждый уровень повышает доход. «Купить всё возможное» тратит монеты на самые дешёвые.',2:'Сундуки, ускорители и скины. Сундуки открываются кнопкой сверху, ускорители действуют по таймеру.',3:'Здесь ежедневный бонус, задания дня и 200 достижений. Готовые награды всегда наверху, «Забрать все» забирает их разом.',4:'В профиле: рейтинг игроков и сезонов, клан, настройки, скины и резервный код сохранения.'};
+const tipHtml=()=>TIPS[S.tab]&&!(S.tips||{})[S.tab]?`<div class="card tip"><span>💡</span><div>${TIPS[S.tab]}</div><button class="up" data-a="tipx" style="padding:8px 12px;font-size:12px">Понятно</button></div>`:'';
+const oview=h=>`<div class="old fx">${hd()}<div class="lst">${tipHtml()}${h}</div></div>`;
+const ttl=t=>`<div class="hd"><div class="t"><h1>${t}</h1></div></div>`;
+const ucard=u=>{const L=lv(u.id)-(u.s||0),mx=u.m&&L>=u.m;return `<div class="uc"><div class="uh"><div class="ut ${u.k||''}">${u.i}</div><div class="un"><b>${u.n}</b><small>${u.d}</small></div></div><div class="ub"><div><small>Уровень ${L}${u.m?' / '+u.m:''}</small><div class="price"><i class="dc">$</i>${mx?'Макс.':bd('pr:'+u.id)}</div></div><button class="up" data-p="${u.id}" data-a="up" data-x="${u.id}">${mx?'Макс.':'Улучшить'}</button></div></div>`};
+const vUpg=()=>`<h3 class="sh">Улучшения клика</h3><div class="ug">${['click','auto','boost','off','crit','spd'].map(i=>ucard(U(i))).join('')}</div><h3 class="sh">Бонусы и удача</h3><div class="ug">${['critm','btime','bdur','gluck','gbig'].map(i=>ucard(U(i))).join('')}</div><button class="up wide" data-a="buyall">Купить всё возможное</button>${prest()}${petRow()}`;
+function vMain(){const on=autoOn();return `<div class="old fx">${hd()}<div class="card top"><div class="l"><h4><span style="color:var(--p1)">⚡</span>Монеты за клик</h4><div class="big">${bd('cv')} ${CN}</div><div class="box"><small>⚡ Всего монет</small><b>${bd('tot')} ${CN}</b></div></div>
+<div class="orb" id="orb"><div class="halo"></div><svg class="rg" viewBox="0 0 200 200"><circle cx="100" cy="100" r="94" fill="none" stroke="#2a2a6a" stroke-width="3"/><circle id="arc" cx="100" cy="100" r="80" fill="none" style="stroke:var(--p1)" stroke-width="7" stroke-linecap="round" stroke-dasharray="503" stroke-dashoffset="503"/></svg><div class="core"><span>👆</span></div><div class="cmb" id="cmb"></div></div>
+<div><div class="bn" id="bnc"><div class="r"><span>🎁</span><div><small>Бонус</small><b>x2</b></div></div><div class="tm">⏱ ${bd('bn')}</div></div><div class="au"><span style="color:var(--p1);font-size:16px">⚡</span><div class="t">Авто-кликер<small>${on?'Включен':'Выключен'}</small></div><div class="sw ${on?'on':''}" data-a="atg"></div></div></div></div>
+<div class="lst"><h2 style="margin-top:12px">Улучшения</h2>${['click','auto','boost','off'].map(i=>orow(U(i))).join('')}<div class="card dl"><div class="ic">🎁</div><div class="tx"><b>Ежедневный бонус</b><small>${bd('st')}</small></div><div class="gf">🎁</div><button class="up" id="dlb" data-a="daily">${bd('dl')}</button></div></div></div>`}
+const pg=()=>Math.floor(Math.sqrt(S.run/5000));
+const prest=()=>`<div class="card ur pr"><div class="ic">⭐</div><div class="tx"><b>Перерождение</b><small>Множитель дохода ×${(1+.25*S.stars).toFixed(2)} (⭐ ${S.stars})</small><small>${bd('pgt')}</small></div><button class="up" data-a="arm" data-x="prest">Возродиться</button></div>`;
+const BR=[['⚡ Клик',['click','crit','critm']],['🤖 Авто',['auto','boost','off']],['🎁 Бонусы',['btime','bdur']],['🍀 Удача',['gluck','gbig']]];
+const PETI=['🥚','🐣','🐥','🦆','🦅','🐲'];
+const petCost=()=>S.pet?Math.round(300*Math.pow(1.6,S.pet-1)):2000;
+const petRow=()=>`<div class="card ur"><div class="ic">${PETI[S.pet?Math.min(5,Math.ceil(S.pet/3)):0]}</div><div class="tx"><b>Питомец</b><small>${S.pet?'Ур. '+S.pet+' · +'+(S.pet*.3).toFixed(1)+' клика/сек':'Приносит монеты сам и растёт'}</small></div><button class="up" data-a="pet">${S.pet?'Кормить':'Купить'} $${nf(petCost())}</button></div>`;
+const QK={clicks:['Сделать {g} кликов',()=>S.clicks],earn:['Заработать {g} монет',()=>S.tot],crit:['Нанести {g} крит-ударов',()=>S.crits],upg:['Купить {g} улучшений',()=>S.ups]};
+const dstr=()=>new Date().toISOString().slice(0,10);
+function ensureQ(){if(S.dq&&S.dq.d===dstr())return;const ks=Object.keys(QK).sort(()=>Math.random()-.5).slice(0,3),lvs=totLv();S.dq={d:dstr(),b:{clicks:S.clicks,earn:S.tot,crit:S.crits,upg:S.ups},q:ks.map((k,i)=>({k,g:{clicks:150*(i+1),earn:Math.max(1000,Math.round(S.tot*.04))*(i+1),crit:5*(i+1),upg:2+i}[k],r:Math.round((200+40*lvs)*(i+1)),c:0}))}}
+let lastCl='',ccount=-1;
+const qst=q=>q.c?2:(QK[q.k][1]()-S.dq.b[q.k]>=q.g?0:1);
+const qhtml=()=>{ensureQ();return S.dq.q.map((q,i)=>({q,i})).sort((a,b)=>qst(a.q)-qst(b.q)).map(({q,i})=>`<div class="card ur${lastCl==='q'+i?' drop':''}"><div class="ic">${q.c?'✅':'📋'}</div><div class="tx"><b>${QK[q.k][0].replace('{g}',nf(q.g))}</b><small>Награда: ${nf(q.r)} ${CN}</small><div class="pg" data-q="${i}"><i></i></div></div><button class="up" data-a="qc" data-x="${i}">Забрать</button></div>`).join('')};
+const claimN=()=>AC.filter(a=>!S.ac[a.id]&&a.p()>=a.t).length+(S.dq?S.dq.q.filter(q=>!q.c&&QK[q.k][1]()-S.dq.b[q.k]>=q.g).length:0);
+const accSt=a=>S.ac[a.id]?2:(a.p()>=a.t?0:1);
+const accRow=a=>`<div class="card ur${lastCl===a.id?' drop':''}"><div class="ic">${S.ac[a.id]?'✅':'🏆'}</div><div class="tx"><b>${a.n}</b><small>Награда: ${nf(a.r)} ${CN}${a.tk?' + '+a.tk+' 🎟️':''}${a.it?' + '+itemLabel(a.it):''}</small><div class="pg" data-ac="${a.id}"><i></i></div></div><button class="up" data-a="ach" data-x="${a.id}">Забрать</button></div>`;
+const chart=()=>{const h=S.hist.length?S.hist:[0],m=Math.max(1,...h);return `<svg viewBox="0 0 300 80" width="100%" height="80" preserveAspectRatio="none">${h.map((v,i)=>`<rect x="${i*10+1}" y="${80-v/m*76}" width="8" height="${v/m*76+.5}" rx="2" fill="var(--p1)" opacity=".85"/>`).join('')}</svg><div class="sm2">Монет за каждые 10 секунд. Максимум: ${nf(m)}</div>`};
+let nb=Date.now()+90000,boss=null;
+const BOSSES=[
+{e:'👾',n:'Пришелец',hp:30,t:12,m:1,k:'std',d:'Бей быстро!'},
+{e:'🐉',n:'Дракон',hp:55,t:16,m:2.2,k:'std',d:'Огромный запас здоровья!'},
+{e:'🤖',n:'Робот-прыгун',hp:28,t:14,m:1.6,k:'jump',d:'Он прыгает — лови!'},
+{e:'👻',n:'Призрак',hp:26,t:14,m:1.8,k:'ghost',d:'Бей, пока он виден!'},
+{e:'🧌',n:'Тролль',hp:34,t:14,m:2,k:'regen',d:'Быстро восстанавливает здоровье!'},
+{e:'🦑',n:'Кракен',hp:40,t:15,m:2.5,k:'shield',d:'Бей, когда щит спущен!'}];
+let lastB=-1;
+function notify(t,b){try{if(S.notif&&document.hidden&&'Notification' in window&&Notification.permission==='granted'){if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(r=>r.showNotification(t,{body:b,icon:'icon-192.png',badge:'icon-192.png',tag:t}));else new Notification(t,{body:b})}}catch(e){}}
+function spawnBoss(){nb=Date.now()+(180+Math.random()*120)*1000;let i;do{i=Math.floor(Math.random()*BOSSES.length)}while(i===lastB);lastB=i;const b=BOSSES[i],hp=Math.round(b.hp*(1+Math.min(.6,totLv()/60)));
+ boss={hp,max:hp,end:Date.now()+b.t*1000,b,off:0,iv:0};notify('👾 '+b.n+' атакует!','Победите босса и получите награду');const d=document.createElement('div');d.id='boss';d.innerHTML=`<div class="bt">${b.e} ${b.n}</div><div class="bd">${b.d}</div><button class="bb" data-a="boss">${b.e}</button><div class="bh"><i></i></div><div class="btm"></div>`;$('#app').appendChild(d);
+ const bar=()=>{const e=document.querySelector('#boss .bh i');if(e)e.style.width=Math.max(0,boss.hp/boss.max*100)+'%'};
+ if(b.k==='ghost'||b.k==='shield')boss.iv=setInterval(()=>{if(!boss)return;boss.off=boss.off?0:1;const el=$('#boss');if(el)el.classList.toggle(b.k==='ghost'?'off':'shd',!!boss.off)},b.k==='ghost'?900:1100);
+ if(b.k==='regen')boss.iv=setInterval(()=>{if(boss&&boss.hp<boss.max){boss.hp++;bar()}},450)}
+function endBoss(win){if(boss&&boss.iv)clearInterval(boss.iv);const d=$('#boss');if(d)d.remove();const b=boss.b;boss=null;if(win){const r=Math.max(500,base()*250*b.m);add(r);S.bosses++;S.bt[b.n]=(S.bt[b.n]||0)+1;xpAdd(50);let t=b.e+' '+b.n+' побеждён! +'+nf(r);if(Math.random()<.3){S.tk++;t+=' и 🎟️ +1'}toast(t);sfx.gold();save()}else toast(b.e+' '+b.n+' убежал…',1)}
+const TUT=[['👆','Тапай по кнопке','Каждый клик приносит монеты. Быстрые клики дают комбо!'],['⚡','Улучшай','Покупай улучшения и скины за монеты, нанимай авто-кликер и питомца.'],['🎁','Лови бонусы','Задания дня, золотые монеты и боссы дают награды.']];
+function showTut(i){let d=$('#tut');if(!d){d=document.createElement('div');d.id='tut';$('#app').appendChild(d)}const t=TUT[i];d.innerHTML=`<div class="card"><div class="em">${t[0]}</div><h3>${t[1]}</h3><p>${t[2]}</p><button class="up" style="width:100%;padding:13px" data-a="tut" data-x="${i+1}">${i<2?'Далее':'Играть!'}</button></div>`}
+const PRM={gold:['Gold',20,309,'#8a6653'],plat:['Platinum',35,499,'#75708a'],black:['Black',50,799,'#33303a']};
+const PACK=[[5,75],[15,199],[40,499]],RKp={'':0,gold:1,plat:2,black:3};
+const BST=[{id:'x3',n:'Ускорение ×3',d:'Доход ×3 на 10 минут',i:'🚀',t:3},{id:'a5',n:'Турбо-автоклик',d:'+5 кликов/сек на 10 минут',i:'🤖',t:2},{id:'bn',n:'Мгновенный бонус',d:'Включить бонус ×2 сейчас',i:'🎁',t:1}];
+const vShop=()=>`<div class="fx">${hd}<div class="lst"><div class="card pf" style="margin-top:24px;padding:44px 20px"><div style="font-size:68px">🛠️</div><h2 style="margin:12px 0 6px">В разработке</h2><div style="color:var(--mut);font-size:14px;line-height:1.5">Магазин скоро появится.<br>Следите за обновлениями!</div></div></div></div>`;
+const SK={neon:{n:'Неон',p:'#7a5cff',q:'#4a2fe0',c:0},gold:{n:'Золото',p:'#ffcf5a',q:'#c47a10',c:5000},ice:{n:'Лёд',p:'#6fe3ff',q:'#1b7fd6',c:8000},ruby:{n:'Рубин',p:'#ff6a8a',q:'#c0154a',c:12000},toxic:{n:'Кислота',p:'#a8ff5a',q:'#2a9d2a',c:20000},sakura:{n:'Сакура',p:'#ff9ad5',q:'#c2408a',c:15000},sunset:{n:'Закат',p:'#ff8a4a',q:'#c0392b',c:25000},mint:{n:'Мята',p:'#4affc8',q:'#0f9d7a',c:40000}};
+let ACC='#7a5cff';
+function applyTheme(){const k=SK[S.skin]||SK.neon,r=document.documentElement.style;ACC=k.p;r.setProperty('--p1',k.p);r.setProperty('--p2',k.q);const ap=$('#app');ap.classList.toggle('lt',!!S.light);ap.classList.toggle('lite',S.fxq===1);ap.classList.toggle('fxoff',S.fxq===0)}
+let ACX;
+function beep(f,d,t,v,dl){if(!S.snd||!ACX)return;try{const o=ACX.createOscillator(),g=ACX.createGain(),n=ACX.currentTime+(dl||0);o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(Math.max(.0002,(v||.07)*(S.vol==null?100:S.vol)/100),n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(ACX.destination);o.start(n);o.stop(n+d)}catch(e){}}
+let musT=0,musG=null;
+function musicSync(){if(musT){clearInterval(musT);musT=0}if(musG&&ACX){try{musG.gain.setTargetAtTime(0,ACX.currentTime,.3)}catch(e){}}
+ if(!S.mus||!ACX)return;if(ACX.state==='suspended')ACX.resume();
+ try{if(!musG){musG=ACX.createGain();musG.connect(ACX.destination)}musG.gain.setTargetAtTime(Math.max(.0001,(S.mvol==null?40:S.mvol)/100*.12),ACX.currentTime,.3)}catch(e){return}
+ const CH=[[220,277.2,329.6],[196,246.9,293.7],[174.6,220,261.6],[196,246.9,329.6]];let i=0;
+ const play=()=>{if(!S.mus||!ACX||!musG)return;const c=CH[i++%CH.length],t=ACX.currentTime;c.forEach((f,k)=>{const o=ACX.createOscillator(),g=ACX.createGain();o.type='sine';o.frequency.value=f*(k===2?2:1);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.35,t+1.2);g.gain.linearRampToValueAtTime(.0001,t+4.2);o.connect(g);g.connect(musG);o.start(t);o.stop(t+4.4)})};
+ play();musT=setInterval(play,4000)}
+const sfx={tap:()=>beep(760,.06,'triangle',.16),crit:()=>{beep(660,.14,'triangle',.24);beep(990,.2,'triangle',.24,.08)},buy:()=>{beep(523,.12,'triangle',.22);beep(784,.18,'triangle',.22,.08)},bad:()=>beep(240,.14,'triangle',.2),gold:()=>[880,1175,1568].forEach((f,i)=>beep(f,.16,'triangle',.22,i*.07))};
+const vib=n=>{if(S.vib)try{navigator.vibrate&&navigator.vibrate(n)}catch(e){}};
+function flash(id){const b=document.querySelector('[data-p="'+id+'"]');if(b)b.closest('.ur,.uc').classList.add('buy')}
+const vQsub=()=>`<h3 class="sh">Задания дня</h3>${qhtml()}`;
+const vRwd=()=>{const st=S.streak?((S.streak-1)%30)+1:0,cl=AC.filter(a=>!S.ac[a.id]&&a.p()>=a.t).slice(0,8);return `<div class="card dl2"><div class="ic">🎁</div><div class="tx"><b>Ежедневный бонус</b><small>${bd('st')}</small><div class="days cal">${Array.from({length:30},(_,i)=>`<i class="${i+1<=st?'on':''}${(i+1)%7===0||i===29?' big':''}">${i+1}</i>`).join('')}</div></div><button class="up" id="dlb" data-a="daily">${bd('dl')}</button></div><h3 class="sh">Готово к получению</h3>${cl.length?cl.map(accRow).join(''):'<div class="emp">Пока нечего забирать.<br>Выполняйте задания и достижения!</div>'}<button class="up wide" data-a="tab" data-x="2">Все достижения →</button>`};
+const CH={c1:{n:'Обычный сундук',e:'📦',p:1500,d:'Деньги, иногда билет'},c2:{n:'Редкий сундук',e:'🎁',p:8000,d:'Деньги, билеты, шанс на ускоритель и скин'},c3:{n:'Легендарный сундук',e:'👑',p:40000,d:'Крупный приз, билеты, ускоритель, шанс на скин'}};
+const BSTS={x3:{n:'Ускорение ×3',e:'🚀',p:2500,d:'Доход ×3 на 10 минут',key:'x3',ms:6e5},a5:{n:'Турбо-автоклик',e:'🤖',p:1200,d:'+5 кликов в секунду на 10 минут',key:'au5',ms:6e5},bn:{n:'Мгновенный бонус',e:'⚡',p:600,d:'Включить бонус ×2 прямо сейчас'}};
+const sp=n=>Math.max(1,Math.round(n*(1-(CFG.shopSale||0)/100)));
+const pr$=n=>`<div class="price"><i class="dc">$</i>${CFG.shopSale?`<s style="opacity:.5;margin-right:3px">${nf(n)}</s>`:''}${nf(sp(n))}</div>`;
+const sc=(e,n,d,price,btn)=>`<div class="uc"><div class="uh"><div class="ut">${e}</div><div class="un"><b>${n}</b><small>${d}</small></div></div><div class="ub"><div>${price}</div>${btn}</div></div>`;
+function grantBoost(id,n){const b=BSTS[id];if(!b)return;S.boosts=(S.boosts||0)+1;if(b.key==='au5')S.au5off=0;if(b.key)S[b.key]=Math.max(Date.now(),S[b.key]||0)+b.ms*(n||1);else S.bn=Date.now()}
+function grantItem(k,id,n){n=n||1;if(k==='skin'&&SK[id])S.skins[id]=1;else if(k==='boost')grantBoost(id,n);else if(k==='chest'&&CH[id])S.ch[id]=(S.ch[id]||0)+n;else if(k==='card'&&PRM[id]&&RKp[S.prem]<RKp[id])S.prem=id}
+function itemLabel(i){const n=i.n>1?' ×'+i.n:'';if(i.k==='skin')return '🎨 Скин «'+(SK[i.id]?SK[i.id].n:i.id)+'»';if(i.k==='boost')return (BSTS[i.id]?BSTS[i.id].e+' '+BSTS[i.id].n:i.id)+n;if(i.k==='chest')return (CH[i.id]?CH[i.id].e+' '+CH[i.id].n:i.id)+n;if(i.k==='card')return '💳 Карта '+(PRM[i.id]?PRM[i.id][0]:i.id);return String(i.id)}
+function chestRoll(id){const p=CH[id].p,lo={c1:.5,c2:.6,c3:.8}[id],hi={c1:1.5,c2:1.7,c3:2.2}[id],r={c:Math.round(p*(lo+Math.random()*(hi-lo))),tk:0,boost:null,skin:null};
+ r.tk={c1:Math.random()<.2?1:0,c2:1+Math.floor(Math.random()*3),c3:3+Math.floor(Math.random()*6)}[id];
+ if(Math.random()<{c1:.05,c2:.25,c3:1}[id])r.boost=['x3','a5','bn'][Math.floor(Math.random()*3)];
+ if(Math.random()<{c1:0,c2:.08,c3:.3}[id]){const un=Object.keys(SK).filter(k=>!S.skins[k]);if(un.length)r.skin=un[Math.floor(Math.random()*un.length)]}
+ return r}
+const vShopSub=()=>{const sale=CFG.shopSale?`<div class="sale">🔥 Скидка −${CFG.shopSale}% на всё за доллары!</div>`:'';
+ const inv=Object.entries(CH).filter(([id])=>S.ch[id]>0).map(([id,c])=>`<button class="up wide" data-a="copen" data-x="${id}">${c.e} Открыть: ${c.n} (${S.ch[id]})</button>`).join('');
+ const chests=Object.entries(CH).map(([id,c])=>sc(c.e,c.n,c.d,pr$(c.p),`<button class="up" data-a="sbuy" data-x="chest:${id}">Купить</button>`)).join('');
+ const boosts=Object.entries(BSTS).map(([id,b])=>sc(b.e,b.n,b.d+(b.key&&S[b.key]>Date.now()?'<br><b style="color:#5cf27a">Активно: '+bd('bx:'+b.key)+'</b>':''),pr$(b.p),`<button class="up" data-a="sbuy" data-x="boost:${id}">Купить</button>`)).join('');
+ const skins=Object.entries(SK).map(([id,k])=>{const own=S.skins[id],on=S.skin===id;return sc(`<span class="swd" style="background:${k.p};box-shadow:0 0 12px ${k.p}"></span>`,k.n,own?(on?'Выбран':'Открыт'):'Цвет оформления',own?'':pr$(k.c),`<button class="up ${on?'no':''}" data-a="skin" data-x="${id}">${own?(on?'Надет':'Надеть'):'Купить'}</button>`)}).join('');
+ const cards=Object.entries(PRM).map(([id,p])=>`<button class="pcx" data-a="arm" data-x="buy:${id}"><div class="pmc" style="background:${p[3]}dd"><i class="cir"></i><b>${p[0]}</b><small>5282 3456 7890 1289 &nbsp; 09/28</small></div><div class="pbn">+${p[1]}% к доходу<br>+${p[1]}% за клик</div><div class="ppr">${S.prem===id?'✓ Активна':p[2]+' RUB'}</div></button>`).join('');
+ const packs=PACK.map((p,i)=>sc('🎟️',p[0]+' билетов','Тратятся на ускорители',`<div class="price">${p[1]} RUB</div>`,`<button class="up" data-a="arm" data-x="pack:${i}">Купить</button>`)).join('');
+ const tb=BST.map(b=>sc(b.i,b.n,b.d,`<div class="price">🎟️ ${b.t}</div>`,`<button class="up" data-a="arm" data-x="bst:${b.id}">Взять</button>`)).join('');
+ return `${sale}${inv}<h3 class="sh">Сундуки</h3><div class="ug">${chests}</div><h3 class="sh">Ускорители</h3><div class="ug">${boosts}</div><h3 class="sh">Скины</h3><div class="ug">${skins}</div><h3 class="sh">Премиум-карты</h3><div class="mu2" style="margin:0 2px 8px;font-size:11.5px">Бонусы не суммируются. Оплата демо: нажмите дважды.</div>${cards}<h3 class="sh">Билеты 🎟️ <small style="color:var(--mut);font-weight:500">у вас: ${S.tk}</small></h3><div class="ug">${packs}</div><h3 class="sh">Ускорители за билеты</h3><div class="ug">${tb}</div>`};
+const kv=(l,v)=>`<div class="rw"><span>${l}</span><b>${v}</b></div>`;
+const vStats=()=>`<div class="fx">${ttl('Статистика')}<div class="lst"><div class="card" style="padding:4px 16px">${kv('Баланс',money(S.c))}${kv('Всего заработано',money(S.tot))}${kv('Доход в секунду',money(ips()))}${kv('Монет за клик',money(cv()))}${kv('Уровень игрока',S.plv)}${kv('Кликов',nf(S.clicks))}${kv('Бонус-ударов',nf(S.crits))}${kv('Макс. комбо','×'+(S.maxMul||1).toFixed(1))}${kv('Боссов побеждено',nf(S.bosses))}${kv('Золотых монет',nf(S.golds))}${kv('Улучшений куплено',nf(S.ups))}${kv('Времени в игре',Math.floor(S.play/60)+' мин')}</div><h2>Доход <small>последние 5 минут</small></h2><div class="card" style="padding:12px">${chart()}</div><button class="up wide" style="margin:10px 0" data-a="share">Поделиться результатом</button></div></div>`;
+const ACCAT=[['all','Все'],['ready','🎯 Готовые'],['money','💰 Деньги'],['upg','⚡ Улучшения'],['boss','👾 Бои'],['misc','🎮 Прочее']];
+const acCat=a=>/^[kc]\d|^(bal|ip|ht)\d/.test(a.id)?'money':/^(u\d|up_)/.test(a.id)?'upg':/^([xmbg]\d|bt_)/.test(a.id)?'boss':'misc';
+const acList=()=>{let l=AC.slice();const f=S.acf||'all';if(f==='ready')l=l.filter(a=>accSt(a)===0);else if(f!=='all')l=l.filter(a=>acCat(a)===f);return l.sort((x,y)=>{const a=accSt(x),b=accSt(y);return a-b||(a===1?y.p()/y.t-x.p()/x.t:0)})};
+const vAch=()=>{const ready=AC.filter(a=>accSt(a)===0).length,got=AC.filter(a=>S.ac[a.id]).length;return `<div class="fx">${ttl('Достижения')}<div class="lst"><div class="sm2" style="margin:0 2px 8px">Получено: <b>${got}</b> из ${AC.length}${ready?` · готово к получению: <b>${ready}</b>`:''}</div>${ready?`<button class="up wide" data-a="achall" style="margin-bottom:8px">Забрать все (${ready})</button>`:''}<div class="chips">${ACCAT.map(([k,n])=>`<button class="${(S.acf||'all')===k?'on':''}" data-a="acf" data-x="${k}">${n}</button>`).join('')}</div>${acList().map(accRow).join('')||'<div class="emp">Здесь пока пусто</div>'}</div></div>`};
+
+const sw=(k,on)=>`<div class="sw ${on?'on':''}" data-a="set" data-x="${k}"></div>`;
+const lb=()=>{const bots=['Astra','NeoMax','Кликер_77','Zeta','Мурка','ProTap','Volt','Дракон'].map((n,i)=>({n,s:Math.round(400*Math.pow(2.6,i)*(1+S.play/30000))}));bots.push({n:'Вы',s:S.tot,me:1});bots.sort((x,y)=>y.s-x.s);return bots.map((x,i)=>`<div class="rw ${x.me?'me':''}"><span>${i+1}. ${x.n}</span><b>${nf(x.s)}</b></div>`).join('')};
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const API_BASE=String(window.EC_API||'').replace(/\/$/,''),ONLINE=window.EC_API!=null;
+let TOKEN='',UID=null,LB=[],lbSt='load',myRank=0,total=0,cloudBusy=0,lastCk='',authMode='login',authErr='',authU='',authN='';
+try{TOKEN=localStorage.getItem('ec_token')||''}catch(e){}
+const ck=()=>S.clicks+'|'+Math.floor(S.c)+'|'+Math.floor(S.tot)+'|'+S.ups+'|'+S.stars+'|'+S.pet;
+async function api(p,o){o=o||{};const h={'Content-Type':'application/json'};if(TOKEN)h.Authorization='Bearer '+TOKEN;const r=await fetch(API_BASE+'/api'+p,Object.assign({headers:h},o));let j={};try{j=await r.json()}catch(e){}if(!r.ok){const e=new Error(j.error||'Ошибка сервера');e.status=r.status;throw e}return j}
+const myId=()=>UID||(S.pid||(S.pid=Math.random().toString(36).slice(2,10).toUpperCase()));
+let lbMode='bal',SEA=null,CLAN=null,CLTOP=[],clSt='load';
+const dur$=ms=>{const m=Math.max(0,Math.floor(ms/6e4)),d=Math.floor(m/1440),h=Math.floor(m%1440/60);return d?d+' д '+h+' ч':h+' ч '+(m%60)+' мин'};
+const prizeTx=p=>nf(p.c)+' ♛ + 🎟️'+p.tk+(p.it?' + '+itemLabel(p.it):'');
+function lbhtml(){if(!ONLINE)return '<div class="emp">Онлайн-режим не подключён: рейтинг появится, когда в config.js будет указан адрес сервера.</div>';if(lbSt==='off')return '<div class="emp">Войдите в аккаунт, чтобы попасть в рейтинг.</div>';if(lbSt==='load')return '<div class="emp">Загрузка рейтинга…</div>';if(lbSt==='err')return '<div class="emp">Нет связи с сервером.</div>';
+ if(lbMode==='season'&&SEA){const me=SEA.me,rows=SEA.top.map(x=>{const m=x.public_id===UID;return `<div class="rw ${m?'me':''}"><span>${x.rank}. ${esc(x.nick)}<small class="pid">#${esc(x.public_id)}</small></span><b>+${money(x.gain)}</b></div>`}).join('');
+  const last=SEA.last&&SEA.last.top.length?`<div class="sm2" style="padding:8px 0 2px">Прошлый сезон: ${SEA.last.top.slice(0,3).map(w=>w.rank+'. '+esc(w.nick)).join(' · ')}</div>`:'';
+  const pz=`<div class="sm2" style="padding:6px 0">🏆 Призы: 1 место — ${prizeTx(SEA.prizes[0])}; 2 — ${prizeTx(SEA.prizes[1])}; 3 — ${prizeTx(SEA.prizes[2])}; 4–10 — ${prizeTx(SEA.prizes[3])}</div>`;
+  return `<div class="sm2" style="padding:8px 0 2px">⏳ До конца сезона: <b>${dur$(SEA.end-Date.now())}</b> · считается заработок за неделю</div>`+(rows||'<div class="emp">В этом сезоне пока никого. Играйте и будьте первыми!</div>')+(me&&me.rank>SEA.top.length?`<div class="rw me"><span>${me.rank}. ${esc(S.nick)} (вы)</span><b>+${money(me.gain)}</b></div>`:'')+pz+last}
+ const rows=LB.map(x=>{const me=x.public_id===UID;return `<div class="rw ${me?'me':''}"><span>${x.rank}. ${esc(x.nick)}${x.stars?' ⭐'+x.stars:''}<small class="pid">#${esc(x.public_id)}</small></span><b>${money(me?S.c:x.bal)}</b></div>`}).join('');
+ const extra=myRank>LB.length?`<div class="rw me"><span>${myRank}. ${esc(S.nick)} (вы)<small class="pid">#${esc(UID)}</small></span><b>${money(S.c)}</b></div>`:'';
+ return (rows||'<div class="emp">Пока никого нет.</div>')+extra+`<div class="sm2" style="padding:8px 0">Всего игроков: ${total}</div>`}
+async function fetchLB(){if(!UID){lbSt='off';return paintLB()}try{const j=await api('/leaderboard?limit=50'+(lbMode==='season'?'&mode=season':''));if(j.mode==='season'){SEA=j}else{LB=j.top;myRank=j.me?j.me.rank:0;total=j.total}lbSt='on'}catch(e){lbSt=e.status===401?'off':'err'}paintLB()}
+/* ---------- кланы ---------- */
+function clanHtml(){if(!ONLINE)return '<div class="emp">Кланы работают при подключённом сервере (config.js).</div>';if(!UID)return '<div class="emp">Войдите в аккаунт, чтобы создать клан или вступить в него.</div>';if(clSt==='load')return '<div class="emp">Загрузка…</div>';if(clSt==='err')return '<div class="emp">Нет связи с сервером.</div>';
+ const top=CLTOP.map(c=>`<div class="rw"><span>${c.rank}. ${esc(c.name)}<small class="pid">${c.count} игр.</small></span><b>${money(c.total)}</b></div>`).join('')||'<div class="emp">Кланов пока нет — создайте первый!</div>';
+ if(!CLAN)return `<div class="two"><input id="cn" maxlength="20" placeholder="Название клана"><button class="up" data-a="clcreate">Создать</button></div><div class="two"><input id="cc" maxlength="6" placeholder="Код клана" style="text-transform:uppercase"><button class="up" data-a="cljoin">Вступить</button></div><h3 class="sh" style="margin-top:12px">Рейтинг кланов</h3>${top}`;
+ const mem=CLAN.members.map((m,i)=>`<div class="rw ${m.public_id===UID?'me':''}"><span>${i+1}. ${esc(m.nick)}${m.public_id===CLAN.owner?' 👑':''}</span><b>${money(m.public_id===UID?S.c:m.bal)}</b></div>`).join('');
+ return `<div class="rw"><span><b style="font-size:17px">${esc(CLAN.name)}</b><small class="pid">место ${CLAN.rank} · ${CLAN.count} игр.</small></span><b>${money(CLAN.total-((CLAN.members.find(m=>m.public_id===UID)||{}).bal||0)+S.c)}</b></div><div class="sm2" style="padding:6px 0">Код приглашения: <b style="color:var(--p1);cursor:pointer" data-a="clcopy">${esc(CLAN.id)} ⧉</b> — отправьте его друзьям</div>${mem}<button class="up" style="width:100%;margin:10px 0;background:#2b2b4a;box-shadow:none" data-a="arm" data-x="clleave">Покинуть клан</button><h3 class="sh">Рейтинг кланов</h3>${top}`}
+function paintClan(){const e=$('#clx');if(e)e.innerHTML=clanHtml()}
+async function fetchClan(){if(!UID){clSt='off';return paintClan()}try{const j=await api('/clan');CLAN=j.clan;CLTOP=j.top;clSt='on'}catch(e){clSt='err'}paintClan()}
+async function clanCall(path,body){try{await api(path,{method:'POST',body:JSON.stringify(body||{})});await fetchClan();fetchLB()}catch(e){toast(e.message,1)}}
+function paintLB(){['#lbx','#lbs'].forEach(q=>{const e=$(q);if(e)e.innerHTML=lbhtml()})}
+const pushLB=()=>{};
+async function cloudPush(force){if(!UID||cloudBusy)return;const k=ck();if(!force&&k===lastCk)return;cloudBusy=1;try{const j=await api('/save',{method:'PUT',keepalive:true,body:JSON.stringify({data:JSON.stringify(S)})});lastCk=k;applySync(j)}catch(e){if(e.status===401)revalidate();else if(e.status===403)banned(e)}cloudBusy=0}
+function authUI(h){let d=$('#auth');if(!d){d=document.createElement('div');d.id='auth';$('#app').appendChild(d)}d.innerHTML='<div class="card">'+h+'</div>'}
+function authClose(){const d=$('#auth');if(d)d.remove()}
+function authForm(){const reg=authMode==='reg';authUI(`<div class="em">👑</div><h3>Empire Clicker</h3><div class="atabs"><button class="${reg?'':'on'}" data-a="amode" data-x="login">Вход</button><button class="${reg?'on':''}" data-a="amode" data-x="reg">Регистрация</button></div>
+<input id="au" maxlength="20" placeholder="Логин (латиница, цифры)" autocomplete="username" autocapitalize="none" value="${esc(authU)}">${reg?`<input id="an" maxlength="20" placeholder="Ник в рейтинге" value="${esc(authN)}">`:''}<input id="ap" type="password" maxlength="200" placeholder="Пароль (любой)" autocomplete="${reg?'new-password':'current-password'}">
+<div class="aerr">${esc(authErr)}</div><button class="up" style="width:100%;padding:13px" data-a="${reg?'register':'login'}">${reg?'Создать аккаунт':'Войти'}</button><button class="gst" data-a="guest">Играть как гость</button>`)}
+async function authDone(j){TOKEN=j.token||TOKEN;try{localStorage.setItem('ec_token',TOKEN)}catch(e){}UID=j.user.public_id;S.nick=j.user.nick;try{localStorage.setItem('ec_user',JSON.stringify({public_id:UID,nick:S.nick}))}catch(e){}
+ if(j.save&&j.save.tot>S.tot){try{S=fixS(Object.assign(def(),JSON.parse(j.save.data)));S.nick=j.user.nick;applyTheme();toast('☁️ Прогресс загружен с сервера')}catch(e){}}
+ applySync(j);lastCk='';authClose();render();save();cloudPush(1);fetchLB();toast('👑 Добро пожаловать, '+S.nick+'!')}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function dropToken(){TOKEN='';UID=null;try{localStorage.removeItem('ec_token');localStorage.removeItem('ec_user')}catch(e){}}
+let reval=0;
+async function revalidate(){if(reval||!TOKEN)return;reval=1;try{await api('/me')}catch(e){if(e.status===401){await sleep(1200);try{await api('/me')}catch(e2){if(e2.status===401){dropToken();lbSt='off';toast('Сессия истекла, войдите снова',1);authForm()}}}}reval=0}
+async function retryMe(){if(!TOKEN)return;try{await authDone(await api('/me'))}catch(e){if(e.status===401)revalidate();else if(e.status===403)banned(e);else setTimeout(retryMe,15000)}}
+function banned(e){dropToken();lbSt='off';authErr=e.message;authForm()}
+async function pollSync(){if(!UID||cloudBusy||!TOKEN)return;try{applySync(await api('/me'))}catch(e){if(e.status===401)revalidate();else if(e.status===403)banned(e)}}
+async function initAuth(){if(!ONLINE){authClose();lbSt='off';return}if(TOKEN){authUI('<div class="em">👑</div><h3>Empire Clicker</h3><p>Загрузка…</p>');let cu=null;try{cu=JSON.parse(localStorage.getItem('ec_user')||'null')}catch(e){}
+ for(let i=0;i<3;i++){try{return await authDone(await api('/me'))}catch(e){if(e.status===403){dropToken();authErr=e.message;break}if(e.status===401){if(i<1){await sleep(800);continue}dropToken();break}await sleep(1200)}}
+ if(TOKEN&&cu){UID=cu.public_id;S.nick=cu.nick||S.nick;authClose();render();lbSt='err';toast('Нет связи с сервером, играем офлайн');setTimeout(retryMe,15000);return}}
+authForm();lbSt='off'}
+async function doAuth(path,body){authErr='';authU=body.username;if(body.nick!==undefined)authN=body.nick;try{await authDone(await api(path,{method:'POST',body:JSON.stringify(body)}))}catch(e){authErr=e.message;authForm()}}
+const setRows=()=>`<div class="rw"><span>Звук</span>${sw('snd',S.snd)}</div><div class="rw"><span>Вибрация</span>${sw('vib',S.vib)}</div><div class="rw"><span>Светлая тема</span>${sw('light',S.light)}</div><div class="rw"><span>Громкость звуков</span><input type="range" min="0" max="100" value="${S.vol==null?100:S.vol}" data-r="vol" style="width:120px"></div><div class="rw"><span>Музыка</span>${sw('mus',S.mus)}</div><div class="rw"><span>Громкость музыки</span><input type="range" min="0" max="100" value="${S.mvol==null?40:S.mvol}" data-r="mvol" style="width:120px"></div><div class="rw"><span>Уведомления<br><small style="color:var(--mut);font-size:11px">когда игра в фоне: бонус, босс</small></span>${sw('notif',S.notif)}</div>${window.__pwa?'<div class="rw"><span>Установить на экран</span><button class="up" style="padding:7px 12px" data-a="pwa">Установить</button></div>':''}<div class="rw"><span>Турбо-автоклик<br><small style="color:var(--mut);font-size:11px">${Date.now()<S.au5?'ещё '+bd('bx:au5'):'сейчас не активен'}</small></span>${sw('au5off',!S.au5off)}</div><div class="rw"><span>Эффекты</span><button class="up" style="padding:7px 12px" data-a="fxq">${['Выкл','Упрощённые','Полные'][S.fxq]}</button></div>`;
+const vPf=()=>`<div class="fx">${ttl('Профиль')}<div class="lst"><div class="card pf"><div class="av">🧑‍💻</div><b style="font-size:20px">${esc(S.nick)||'Игрок'}</b><div class="pidb" data-a="cid">ID: ${myId()} ⧉</div><div class="pidb" style="cursor:default">${UID?'☁️ Аккаунт · прогресс на сервере':'👤 Гость · только на этом устройстве'}</div><div style="color:var(--mut);font-size:13px;margin-top:4px">⭐ ${S.stars} · 🎟️ ${S.tk} · улучшений: ${totLv()}</div></div>
+<h2>Настройки</h2><div class="card" style="padding:4px 16px">${setRows()}</div>
+<h2>Скины</h2><div class="sks">${Object.entries(SK).map(([id,k])=>`<button class="sk ${S.skin===id?'on':''}" data-a="skin" data-x="${id}"><i style="background:${k.p};color:${k.p}"></i>${k.n}<br><small>${S.skins[id]?(S.skin===id?'Выбран':'Открыт'):nf(k.c)+' ♛'}</small></button>`).join('')}</div>
+<h2>Рейтинг</h2><div class="chips"><button class="${lbMode==='bal'?'on':''}" data-a="lbm" data-x="bal">💰 По балансу</button><button class="${lbMode==='season'?'on':''}" data-a="lbm" data-x="season">🏆 Сезон недели</button></div><div class="card" style="padding:4px 16px" id="lbx">${lbhtml()}</div><h2>Клан</h2><div class="card" style="padding:8px 14px" id="clx">${clanHtml()}</div><div class="two"><input id="nick" maxlength="20" placeholder="Ваш ник" value="${esc(S.nick||'')}"><button class="up" data-a="nick">Сохранить ник</button></div>
+<h2>Сохранение</h2><div class="card" style="padding:12px"><textarea id="sv" placeholder="Код сохранения"></textarea><div class="two"><button class="up" data-a="exp">Экспорт</button><button class="up" data-a="imp">Импорт</button></div></div>
+<button class="up" style="width:100%;margin:12px 0 0;padding:14px;background:#3a2a4a;box-shadow:none" data-a="arm" data-x="reset">Сбросить прогресс</button><button class="up" style="width:100%;margin:8px 0;padding:14px;background:#2b2b4a;box-shadow:none" data-a="logout">Выйти из аккаунта</button>
+<button class="up admb" data-a="adm">🛡 Админ-панель</button></div></div>`;
+
+const inner=h=>h.slice(h.indexOf('<div class="lst">')+17,h.lastIndexOf('</div></div>'));
+const vUp=()=>oview(`<h2 style="margin-top:4px">Улучшения клика</h2>${['click','auto','boost','off','crit','spd'].map(i=>orow(U(i))).join('')}<h2>Бонусы и удача</h2>${['critm','btime','bdur','gluck','gbig'].map(i=>orow(U(i))).join('')}<button class="up wide" data-a="buyall" style="margin:2px 0 8px">Купить всё возможное</button>${prest()}${petRow()}`);
+const vShopT=()=>oview(vShopSub());
+const achBody=()=>{const ready=AC.filter(a=>accSt(a)===0).length,got=AC.filter(a=>S.ac[a.id]).length;return `<div class="sm2" style="margin:0 2px 8px">Получено: <b>${got}</b> из ${AC.length}${ready?` · готово к получению: <b>${ready}</b>`:''}</div>${ready?`<button class="up wide" data-a="achall" style="margin-bottom:8px">Забрать все (${ready})</button>`:''}<div class="chips">${ACCAT.map(([k,n])=>`<button class="${(S.acf||'all')===k?'on':''}" data-a="acf" data-x="${k}">${n}</button>`).join('')}</div>${acList().map(accRow).join('')||'<div class="emp">Здесь пока пусто</div>'}`};
+const dailyCard=()=>{const st=S.streak?((S.streak-1)%30)+1:0;return `<div class="card dl2 dlx"><div class="dlr"><div class="ic">🎁</div><div class="tx"><b>Ежедневный бонус</b><small>${bd('st')}</small></div><button class="up" id="dlb" data-a="daily">${bd('dl')}</button></div><div class="days cal">${Array.from({length:30},(_,i)=>`<i class="${i+1<=st?'on':''}${(i+1)%7===0||i===29?' big':''}">${i+1}</i>`).join('')}</div></div>`};
+const vRw=()=>oview(`${dailyCard()}<h2>Задания дня</h2>${qhtml()}<h2>Достижения</h2>${achBody()}`);
+const vProfile=()=>{const b=inner(vPf()),st=inner(vStats());return oview(b.replace('<h2>Настройки</h2>','<h2>Статистика</h2>'+st+'<h2>Настройки</h2>'))};
+const VW=[vMain,vUp,vShopT,vRw,vProfile];
+let SHF=null,admErr='';const annQ=[];
+function openSheet(t,fn){SHF=fn;$('#st').textContent=t;$('#sb').innerHTML=fn();$('#sheet').classList.add('on');BN=null;upd(1)}
+function closeSheet(){SHF=null;$('#sheet').classList.remove('on')}
+function ovl(h){let d=$('#ovl');if(!d){d=document.createElement('div');d.id='ovl';d.className='ov';$('#app').appendChild(d)}d.innerHTML='<div class="card">'+h+'</div>'}
+function render(){$('#m').innerHTML='<div class="v">'+VW[S.tab]()+'</div>';ccount=claimN();lastCl='';if(SHF)$('#sb').innerHTML=SHF();BN=PN=AN=null;tabs();fit();upd(1)}
+function fit(){const m=$('#m'),v=m.firstChild;if(!v)return;const c=getComputedStyle(m);v.style.height=(m.clientHeight-parseFloat(c.paddingTop)-parseFloat(c.paddingBottom))+'px'}
+addEventListener('resize',fit);addEventListener('load',fit);
+function applyCfg(c){if(!c)return;const so=CFG.shopSale;CFG={clickMul:c.clickMul||1,incomeMul:c.incomeMul||1,priceMul:c.priceMul||1,shopSale:c.shopSale||0,maintenance:!!c.maintenance};if(so!==CFG.shopSale&&S.tab===2)setTimeout(render,0);let d=$('#mnt');if(CFG.maintenance){if(!d){d=document.createElement('div');d.id='mnt';d.className='ov';$('#app').appendChild(d)}d.innerHTML='<div class="card"><div class="em">🛠️</div><h3>Технические работы</h3><p>'+esc(c.maintText||'Скоро вернёмся!')+'</p></div>'}else if(d)d.remove();BN=null}
+function applySync(j){if(!j)return;applyCfg(j.cfg);let ch=0;
+ (j.ops||[]).forEach(o=>{if(o.t==='add'){S.c+=o.c||0;S.tk+=o.tk||0;(o.items||[]).forEach(i=>grantItem(i.k,i.id,i.n))}else if(o.t==='set'){S.c=o.c||0}else if(o.t==='ach'){if(o.mode==='reset'){S.ac={}}else{AC.forEach(x=>{if(S.ac[x.id]||(o.cat!=='all'&&acCat(x)!==o.cat))return;S.ac[x.id]=1;S.c+=x.r;S.tot+=x.r;S.tk+=x.tk||0;if(x.it)grantItem(x.it.k,x.it.id,x.it.n||1)})}}else if(o.t==='reset'){const nk=S.nick,sn=S.seenAnn;S=def();S.nick=nk;S.seenAnn=sn;applyTheme()}if(o.msg)toast('👮 '+o.msg+((o.items||[]).length?': '+o.items.map(itemLabel).join(', '):''));ch=1});
+ S.gev=j.ev?{n:j.ev.n,m:j.ev.m,until:j.ev.until}:null;
+ (j.ann||[]).forEach(a=>{if(!S.seenAnn.includes(a.id)){S.seenAnn.push(a.id);if(S.seenAnn.length>40)S.seenAnn.shift();if(a.c)S.c+=a.c;if(a.tk)S.tk+=a.tk;(a.items||[]).forEach(i=>grantItem(i.k,i.id,i.n));annQ.push(a);ch=1}});
+ if(ch){render();save();showAnnNext()}}
+function showAnnNext(){if($('#ovl')||!annQ.length)return;const a=annQ.shift();ovl(`<div class="em">📣</div><h3>${esc(a.title)}</h3><p>${esc(a.text)}</p>${(a.c||a.tk||(a.items||[]).length)?`<p><b>🎁 Подарок: ${a.c?money(a.c):''}${a.tk?' +'+a.tk+' 🎟️':''}${(a.items||[]).map(i=>'<br>'+itemLabel(i)).join('')}</b></p>`:''}<button class="up wide" data-a="ovx">Ок</button>`)}
+let adm2=0;
+const admForm=()=>`<p class="sm2" style="margin:0 0 10px">Введите пароль администратора</p><input class="pin" id="apw" type="password" placeholder="Пароль" autocomplete="off">${adm2?'<input class="pin" id="apc" inputmode="numeric" maxlength="6" placeholder="Код из приложения (2FA)" autocomplete="off" style="margin-top:8px">':''}<div class="aerr">${esc(admErr)}</div><button class="up wide" data-a="admgo">Войти</button>`;
+async function admLogin(){if(!ONLINE){admErr='Сервер не подключён: укажите адрес в config.js';$('#sb').innerHTML=admForm();return}const pw=($('#apw')||{}).value||'';try{const j=await api('/admin/login',{method:'POST',body:JSON.stringify({password:pw,code:($('#apc')||{}).value||''})});adm2=0;sessionStorage.setItem('ec_admin',j.token);closeSheet();const d=document.createElement('div');d.id='admov';d.innerHTML='<iframe src="admin.html?embed=1"></iframe>';document.body.appendChild(d)}catch(e){if(e.message==='Нужен код 2FA'){adm2=1;admErr='Введите код из приложения-аутентификатора'}else admErr=e.message;$('#sb').innerHTML=admForm();const c=$('#apc');if(c)c.focus()}}
+addEventListener('message',e=>{if(e.data&&e.data.ec==='close'){const d=$('#admov');if(d)d.remove()}});
+document.addEventListener('input',e=>{const r=e.target.dataset&&e.target.dataset.r;if(!r)return;S[r]=+e.target.value;if(r==='mvol'&&musG&&ACX)musG.gain.setTargetAtTime(Math.max(.0001,S.mvol/100*.12),ACX.currentTime,.1);if(r==='vol')sfx.tap();save()});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.target.id==='apw'||e.target.id==='apc'))admLogin()});
+document.addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+/* actions */
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const pc=document.createElement('canvas');pc.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:8';document.body.appendChild(pc);const px=pc.getContext('2d');let PT=[],raf=0;
+function rsz(){pc.width=innerWidth;pc.height=innerHeight}rsz();addEventListener('resize',rsz);
+function loop(){px.clearRect(0,0,pc.width,pc.height);px.globalCompositeOperation='lighter';
+ PT=PT.filter(p=>p.l>0);for(const p of PT){p.px=p.x;p.py=p.y;p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.vx*=.985;p.l--;const a=Math.max(0,p.l/p.m);
+  px.globalAlpha=a;px.strokeStyle=p.c;px.lineWidth=p.s*a+.5;px.lineCap='round';px.beginPath();px.moveTo(p.px,p.py);px.lineTo(p.x,p.y);px.stroke();
+}
+ px.globalAlpha=1;raf=PT.length?requestAnimationFrame(loop):0}
+function burst(x,y,crit){if(RM||S.fxq===0)return;const c1=ACC,cs=crit?['#ffd166','#fff','#ff9f43',c1]:[c1,'#fff',c1,'#c9bfff'],n=((crit?30:10)/(S.fxq===1?2.5:1))|0;
+ for(let i=0;i<n;i++){const a=Math.random()*6.283,sp=(crit?3:1.5)+Math.random()*(crit?9:5),m=22+Math.random()*18;PT.push({x,y,px:x,py:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.5,g:.16,l:m,m,s:2+Math.random()*3.5,c:cs[i%cs.length],k:Math.random()<.4})}
+ if(PT.length>150)PT.splice(0,PT.length-150);if(!raf)raf=requestAnimationFrame(loop)}
+function fx(x,y,crit){burst(x,y,crit);const o=$('#orb');if(o){o.classList.remove('hit');void o.offsetWidth;o.classList.add('hit')}
+
+ if(crit&&!RM&&S.fxq===2){const a=$('#m');a.classList.remove('shk');void a.offsetWidth;a.classList.add('shk');const w=document.createElement('div');w.className='flw';w.style.setProperty('--fx',x+'px');w.style.setProperty('--fy',y+'px');document.body.appendChild(w);setTimeout(()=>w.remove(),450)}}
+const cmul=c=>1+2*Math.min(c,40)/40;
+let combo=0,lastTap=0;
+function tap(x,y){const n=Date.now();combo=n-lastTap<800?combo+1:1;lastTap=n;const cm=cmul(combo);if(cm>(S.maxMul||0))S.maxMul=cm;let v=cv()*cm,crit=Math.random()<.05*lv('crit');if(crit){const hi=Math.min(10,4+lv('critm'));v*=2+Math.floor(Math.random()*(hi-1));S.crits++}add(v);S.clicks++;if(v>(S.maxHit||0))S.maxHit=v;xpAdd(1);crit?sfx.crit():sfx.tap();fx(x,y,crit);
+ const f=document.createElement('div');f.className='fl'+(crit?' c':'');f.textContent=(crit?'КРИТ! +':'+')+money(v);f.style.setProperty('--dx',(Math.random()*70-35)+'px');f.style.left=(x-24)+'px';f.style.top=(y-40)+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),900);
+ const r=document.createElement('div');r.className='rp';r.style.left=x+'px';r.style.top=y+'px';document.body.appendChild(r);setTimeout(()=>r.remove(),550);
+ vib(crit?25:8);upd()}
+const add=v=>{S.c+=v;S.tot+=v;S.run+=v};
+let armId='',armT,ng=Date.now()+15000;
+function spawnGold(){ng=Date.now()+Math.max(8000,(25+Math.random()*30)*1000-lv('gluck')*2500);const g=document.createElement('button');g.className='gold';g.dataset.a='gold';g.textContent='🪙';g.style.left=(12+Math.random()*68)+'%';g.style.top=(24+Math.random()*44)+'%';$('#app').appendChild(g);setTimeout(()=>g.remove(),7000)}
+const A={
+ sub(x){S.sub=+x;S.tab=0;render()},
+ lbsheet(){fetchLB();openSheet('Рейтинг',()=>`<div class="card" style="padding:4px 16px" id="lbs">${lbhtml()}</div>`)},
+ setsheet(){openSheet('Настройки',()=>`<div class="card" style="padding:4px 16px">${setRows()}</div>`)},
+ adm(){admErr='';openSheet('Админ-панель',admForm)},
+ admgo(){admLogin()},
+ close(){closeSheet()},
+ ovx(){const d=$('#ovl');if(d)d.remove();showAnnNext()},
+ cid(){try{copyTxt(myId())}catch(e){}toast('ID скопирован: '+myId())},
+ guest(){authClose();lbSt='off';render()},
+ amode(m){authMode=m;authErr='';authForm()},
+ login(){doAuth('/login',{username:$('#au').value.trim(),password:$('#ap').value})},
+ register(){doAuth('/register',{username:$('#au').value.trim(),nick:$('#an').value.trim(),password:$('#ap').value})},
+ async logout(){try{await api('/logout',{method:'POST'})}catch(e){}TOKEN='';UID=null;try{localStorage.removeItem('ec_token')}catch(e){}lbSt='off';authMode='login';authForm();render()},
+ async nick(){const n=($('#nick').value||'').trim().slice(0,20);if(n.length<2)return toast('Ник: минимум 2 символа',1);if(!UID){S.nick=n;save();return toast('Ник сохранён')}try{await api('/nick',{method:'PUT',body:JSON.stringify({nick:n})});S.nick=n;save();toast('Ник сохранён');fetchLB()}catch(e){toast(e.message,1)}},
+ buyall(){let n=0;for(let i=0;i<300;i++){let b=null;UP.forEach(u=>{if(u.m&&lv(u.id)>=u.m)return;const p=price(u.id);if(p<=S.c&&(!b||p<b.p))b={u,p}});if(!b)break;S.c-=b.p;S.u[b.u.id]=lv(b.u.id)+1;S.ups++;n++}n?(sfx.buy(),toast('Куплено улучшений: '+n)):toast('Не хватает монет',1);render();save()},
+ pet(){const p=petCost();if(S.c<p)return toast('Недостаточно монет',1);S.c-=p;S.pet++;sfx.buy();toast(S.pet===1?'🥚 Питомец с вами!':'🍖 Питомец вырос до ур. '+S.pet);render();save()},
+ fxq(){S.fxq=(S.fxq+2)%3;applyTheme();render();save()},
+ share(){const t='Я заработал '+nf(S.tot)+' монет в Empire Clicker! ⭐ '+S.stars;try{if(navigator.share)navigator.share({text:t});else copyTxt(t)}catch(e){}toast('Результат скопирован')},
+ boss(){if(!boss||boss.off)return;boss.hp--;const bt=document.querySelector('#boss .bb'),r=bt.getBoundingClientRect();burst(r.left+r.width/2,r.top+r.height/2,false);vib(10);sfx.tap();document.querySelector('#boss .bh i').style.width=Math.max(0,boss.hp/boss.max*100)+'%';if(boss.b.k==='jump'){bt.style.position='relative';bt.style.left=(Math.random()*180-90)+'px'}if(boss.hp<=0)endBoss(1)},
+ tut(i){if(+i>=TUT.length){const d=$('#tut');d&&d.remove();S.tut=1;save()}else showTut(+i)},
+ qc(i){const q=S.dq.q[i];if(q.c||QK[q.k][1]()-S.dq.b[q.k]<q.g)return;q.c=1;add(q.r);sfx.buy();toast('📋 +'+nf(q.r)+' монет');lastCl='q'+i;if(S.dq.q.every(z=>z.c)){S.tk++;S.qdone++;toast('📋 Все задания! 🎟️ +1')}upd(1);save()},
+ sbuy(x){const[k,v]=x.split(':');
+  if(k==='chest'){const c=CH[v],p=sp(c.p);if(S.c<p)return toast('Недостаточно средств',1);S.c-=p;S.buys=(S.buys||0)+1;S.ch[v]=(S.ch[v]||0)+1;sfx.buy();toast(c.e+' '+c.n+' куплен — откройте его!')}
+  else if(k==='boost'){const b=BSTS[v],p=sp(b.p);if(S.c<p)return toast('Недостаточно средств',1);S.c-=p;S.buys=(S.buys||0)+1;grantBoost(v,1);sfx.buy();toast(b.e+' '+b.n+' включён!')}
+  render();save()},
+ copen(id){if(!(S.ch[id]>0))return;S.ch[id]--;S.chOpen=(S.chOpen||0)+1;const c=CH[id],r=chestRoll(id),L=[];add(r.c);L.push('💰 '+money(r.c));if(r.tk){S.tk+=r.tk;L.push('🎟️ +'+r.tk+' '+(r.tk===1?'билет':'билетов'))}if(r.boost){grantBoost(r.boost,1);L.push(itemLabel({k:'boost',id:r.boost,n:1}))}if(r.skin){S.skins[r.skin]=1;L.push(itemLabel({k:'skin',id:r.skin,n:1}))}
+  sfx.gold();ovl(`<div class="em">${c.e}</div><h3>${c.n} открыт!</h3><p>${L.join('<br>')}</p><button class="up wide" data-a="ovx">Забрать</button>`);render();save()},
+ arm(x){if(armId===x){armId='';clearTimeout(armT);return A.go(x)}armId=x;clearTimeout(armT);armT=setTimeout(()=>armId='',3000);toast(/^(buy|pack)/.test(x)?'Нажмите ещё раз — демо-оплата':'Нажмите ещё раз для подтверждения')},
+ go(x){const[k,v]=x.split(':');
+  if(k==='buy'){if(RKp[S.prem]>=RKp[v])return toast('Уже действует бонус не ниже',1);S.prem=v;sfx.buy();toast('💳 Карта '+PRM[v][0]+' активна!')}
+  else if(k==='pack'){S.tk+=PACK[v][0];sfx.buy();toast('🎟️ +'+PACK[v][0]+' билетов')}
+  else if(k==='bst'){const b=BST.find(z=>z.id===v);if(S.tk<b.t)return toast('Не хватает билетов',1);S.tk-=b.t;const n=Date.now();if(v==='x3')S.x3=Math.max(n,S.x3)+6e5;else if(v==='a5')S.au5=Math.max(n,S.au5)+6e5;else S.bn=n;sfx.buy();toast(b.i+' '+b.n+' включено')}
+  else if(k==='prest'){const g=pg();if(g<1)return toast('Нужно больше монет за забег',1);S.stars+=g;S.c=0;S.run=0;S.u={};S.auto=0;S.bn=Date.now()+277000;sfx.buy();toast('⭐ +'+g+' звёзд! Доход ×'+(1+.25*S.stars).toFixed(2))}
+  else if(k==='clleave'){clanCall('/clan/leave');return}else if(k==='reset'){S=def();applyTheme();lastCk='';cloudPush(1)}
+  render();save()},
+ gold(){const g=$('.gold');if(!g)return;const r=Math.max(50,cv()*40)*(1+.5*lv('gbig'));add(r);let t='✨ Золотая монета: +'+nf(r);if(Math.random()<.2){S.tk++;t+=' и 🎟️ +1'}toast(t);g.remove();S.golds++;xpAdd(10);sfx.gold();upd(1);save()},
+ set(k){S[k]=S[k]?0:1;if(k==='mus')musicSync();if(k==='notif'&&S.notif){if(!('Notification' in window)){S.notif=0;toast('Браузер не поддерживает уведомления',1)}else Notification.requestPermission().then(r=>{if(r!=='granted'){S.notif=0;toast('Разрешите уведомления в настройках браузера',1);render()}})}applyTheme();render();save()},
+ skin(id){const k=SK[id];if(!S.skins[id]){const pr=sp(k.c);if(S.c<pr)return toast('Нужно '+nf(pr)+' монет',1);S.c-=pr;S.buys=(S.buys||0)+1;S.skins[id]=1;sfx.buy()}S.skin=id;applyTheme();render();save()},
+ exp(){const t=$('#sv');t.value=btoa(unescape(encodeURIComponent(JSON.stringify(S))));try{copyTxt(t.value)}catch(e){}toast('Код сохранения готов')},
+ imp(){try{const o=JSON.parse(decodeURIComponent(escape(atob($('#sv').value.trim()))));S=fixS(Object.assign(def(),o));applyTheme();render();save();cloudPush(1);toast('Сохранение загружено')}catch(e){toast('Неверный код',1)}},
+ tab(x){S.tab=+x;render();if(S.tab===4){fetchLB();fetchClan()}},
+ up(id){const u=U(id);if(u.m&&lv(id)>=u.m)return;const p=price(id);if(S.c<p)return toast('Недостаточно монет',1);S.c-=p;S.u[id]=lv(id)+1;S.ups++;xpAdd(5);sfx.buy();toast('✨ '+u.n+' — уровень '+(lv(id)-(u.s||0)));render();flash(id);save()},
+ pwa(){const e=window.__pwa;if(!e)return;e.prompt();e.userChoice.finally(()=>{window.__pwa=null;render()})},
+ tipx(){S.tips=S.tips||{};S.tips[S.tab]=1;render();save()},
+ lbm(x){lbMode=x;render();fetchLB()},
+ clcreate(){const n=($('#cn')||{}).value||'';clanCall('/clan/create',{name:n})},
+ cljoin(){const c=(($('#cc')||{}).value||'').trim().toUpperCase();clanCall('/clan/join',{id:c})},
+ clcopy(){try{copyTxt(CLAN.id)}catch(e){}toast('Код клана скопирован: '+CLAN.id)},
+ atg(){const t=Date.now()<S.au5;if(!lv('auto')&&!t)return toast('Сначала улучшите Авто-кликер',1);if(autoOn()){S.auto=0;S.au5off=1}else{if(lv('auto'))S.auto=1;if(t)S.au5off=0}render();save()},
+ daily(){const n=Date.now();if(n<S.dl)return toast('Бонус будет доступен через '+B('dl'),1);S.streak=(S.dlLast&&n-S.dlLast<1728e5)?S.streak+1:1;S.dlLast=n;const d=((S.streak-1)%30)+1,g=Math.round((100+50*totLv())*d*(d%7===0?3:1)*(d===30?5:1));add(g);let ex='';if(d%7===0){S.tk+=2;ex=' и 🎟️ +2'}if(d===30){S.ch.c3=(S.ch.c3||0)+1;ex+=' и 👑 сундук'}else if(d%10===0){S.ch.c2=(S.ch.c2||0)+1;ex+=' и 🎁 сундук'}S.dl=n+864e5;dlN=0;sfx.buy();toast('🎁 День '+d+'/30: +'+money(g)+ex);render();save()},
+ acf(x){S.acf=x;render()},
+ achall(){let c=0,tk=0,n=0;const items=[];AC.forEach(a=>{if(S.ac[a.id]||a.p()<a.t)return;S.ac[a.id]=1;n++;c+=a.r;tk+=a.tk||0;if(a.it){grantItem(a.it.k,a.it.id,a.it.n||1);items.push(a.it)}});if(!n)return;add(c);S.tk+=tk;sfx.gold();toast('🏆 Получено наград: '+n+' · +'+money(c)+(tk?' · 🎟️ '+tk:'')+(items.length?' · предметов: '+items.length:''));render();save()},
+ ach(id){const a=AC.find(x=>x.id===id);if(S.ac[id]||a.p()<a.t)return;S.ac[id]=1;add(a.r);if(a.tk)S.tk+=a.tk;if(a.it)grantItem(a.it.k,a.it.id,a.it.n||1);sfx.buy();toast('🏆 +'+nf(a.r)+' монет'+(a.tk?' и 🎟️ +'+a.tk:'')+(a.it?' и '+itemLabel(a.it):''));lastCl=id;render();save()},
+ reset(){A.arm('reset')}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(t&&A[t.dataset.a])A[t.dataset.a](t.dataset.x)});
+document.addEventListener('pointerdown',e=>{if(!ACX){try{ACX=new(window.AudioContext||window.webkitAudioContext)();if(S.mus)musicSync()}catch(x){}}const o=e.target.closest('#orb');if(o){o.classList.add('p');const b=o.getBoundingClientRect(),dx=(e.clientX-b.left-b.width/2)/(b.width/2),dy=(e.clientY-b.top-b.height/2)/(b.height/2),c=o.querySelector('.core');c.style.transform='perspective(300px) rotateX('+(-dy*16)+'deg) rotateY('+(dx*16)+'deg) scale(.91)';tap(e.clientX,e.clientY)}});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>document.addEventListener(ev,()=>{const o=$('#orb');if(o){o.classList.remove('p');o.querySelector('.core').style.transform=''}}));
+setInterval(()=>{const n=Date.now();if(n>=S.bn+dur())S.bn=n+gap();S.play++;S.maxBal=Math.max(S.maxBal||0,S.c);S.maxIps=Math.max(S.maxIps||0,ips());
+ {const g=ips();if(g)add(g)}
+ if(n>=ng&&!$('.gold'))spawnGold();
+ if(boss){const e=document.querySelector('#boss .btm');if(e)e.textContent='Осталось '+Math.max(0,Math.ceil((boss.end-n)/1000))+' сек.';if(n>=boss.end)endBoss(0)}else if(n>=nb&&S.tab===0&&!$('.gold'))spawnBoss();
+ if(n>=S.dl&&!dlN){dlN=1;if(S.play>5){toast('🎁 Ежедневный бонус готов!');notify('🎁 Ежедневный бонус готов','Заходите забрать награду!')}}
+ if(S.play%20===0)pushLB();
+ if(S.play%15===0)cloudPush();
+ if(S.play%30===0)pollSync();
+ if(S.play%10===0){S.hist.push(Math.round(S.tot-lastTot));lastTot=S.tot;if(S.hist.length>30)S.hist.shift()}
+ upd();if(S.play%5===0)save()},1000);
+(function(){const away=Math.min(28800,(Date.now()-S.last)/1000);if(lv('off')&&away>60){const g=away*.1*lv('off')*base();add(g);setTimeout(()=>toast('⏰ Пока вас не было: +'+nf(g)+' монет'),600)}})();
+if(!S.sv2){S.snd=0;S.sv2=1}
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__pwa=e;if(S.tab===4)render()});
+ensureQ();if(!S.tut)showTut(0);initAuth();addEventListener('pagehide',()=>cloudPush(1));setInterval(()=>{if(S.tab===4&&UID){fetchLB();fetchClan()}},15000);
+applyTheme();render();setInterval(()=>upd(),120);
+</script></body></html>

@@ -1,0 +1,16 @@
+{
+  "name": "empire-clicker",
+  "version": "1.0.0",
+  "description": "Empire Clicker: браузерная игра-кликер с аккаунтами, рейтингом, кланами и админ-панелью",
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "hash": "node tools/make-hash.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
